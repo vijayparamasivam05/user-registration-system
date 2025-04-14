@@ -1,90 +1,155 @@
-from django.test import TestCase
+from rest_framework.test import APITestCase
+from rest_framework import status
 from .models import CustomUser, Pref
-from .forms import CustomUserCreationForm
 
 
-class CustomUserFormTests(TestCase):
-
+class UserRegistrationAPITests(APITestCase):
     def setUp(self):
-        # Add a valid prefecture for testing
         self.pref = Pref.objects.create(name="Tokyo")
+        self.url = "/accounts/register/"
 
-    def test_valid_form(self):
-        form_data = {
+    def test_register_user(self):
+        data = {
             "username": "testuser",
             "email": "test@example.com",
-            "password1": "StrongPass123",
-            "password2": "StrongPass123",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
             "tel": "09012345678",
             "pref": self.pref.id,
         }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertTrue(form.is_valid())
-
-    def test_username_too_short(self):
-        form_data = {
-            "username": "aa",
-            "email": "test@example.com",
-            "password1": "StrongPass123",
-            "password2": "StrongPass123",
-            "tel": "09012345678",
-            "pref": self.pref.id,
-        }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("username", form.errors)
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["message"], "User registered successfully!")
 
     def test_duplicate_email(self):
         CustomUser.objects.create_user(
-            username="existing", email="test@example.com", password="pass"
+            username="existinguser", email="test@example.com", password="pass123"
         )
-        form_data = {
+        data = {
             "username": "newuser",
-            "email": "test@example.com",  # same email
-            "password1": "StrongPass123",
-            "password2": "StrongPass123",
+            "email": "test@example.com",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
             "tel": "09012345678",
             "pref": self.pref.id,
         }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("email", form.errors)
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("email", response.data)
+
+    def test_passwords_do_not_match(self):
+        data = {
+            "username": "testuser",
+            "email": "test5@example.com",
+            "password": "StrongPass123",
+            "password_confirmation": "DifferentPass123",
+            "tel": "09012345678",
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password_confirmation", response.data)
+
+    def test_short_username(self):
+        data = {
+            "username": "ab",
+            "email": "test6@example.com",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
+            "tel": "09012345678",
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("username", response.data)
+
+    def test_password_missing_uppercase(self):
+        data = {
+            "username": "testuser",
+            "email": "test7@example.com",
+            "password": "strongpass123",
+            "password_confirmation": "strongpass123",
+            "tel": "09012345678",
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", response.data)
+
+    def test_password_missing_number(self):
+        data = {
+            "username": "testuser",
+            "email": "test8@example.com",
+            "password": "StrongPass",
+            "password_confirmation": "StrongPass",
+            "tel": "09012345678",
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", response.data)
 
     def test_weak_password(self):
-        form_data = {
+        data = {
             "username": "testuser",
             "email": "test2@example.com",
-            "password1": "weakpass",
-            "password2": "weakpass",
+            "password": "weakpass",
+            "password_confirmation": "weakpass",
             "tel": "09012345678",
             "pref": self.pref.id,
         }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("password1", form.errors)
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", response.data)
 
     def test_invalid_tel(self):
-        form_data = {
+        data = {
             "username": "testuser",
             "email": "test3@example.com",
-            "password1": "StrongPass123",
-            "password2": "StrongPass123",
-            "tel": "abc123",  # Invalid
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
+            "tel": "invalidtel",
             "pref": self.pref.id,
         }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("tel", form.errors)
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("tel", response.data)
+
+    def test_tel_too_short(self):
+        data = {
+            "username": "testuser",
+            "email": "test9@example.com",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
+            "tel": "123",
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("tel", response.data)
+
+    def test_tel_too_long(self):
+        data = {
+            "username": "testuser",
+            "email": "test10@example.com",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
+            "tel": "0" * 25,  # 25 digits, too long
+            "pref": self.pref.id,
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("tel", response.data)
 
     def test_invalid_pref(self):
-        form_data = {
+        data = {
             "username": "testuser",
             "email": "test4@example.com",
-            "password1": "StrongPass123",
-            "password2": "StrongPass123",
+            "password": "StrongPass123",
+            "password_confirmation": "StrongPass123",
             "tel": "09012345678",
-            "pref": 9999,  # Non-existent Pref ID
+            "pref": 9999,  # Invalid ID
         }
-        form = CustomUserCreationForm(data=form_data)
-        self.assertFalse(form.is_valid())
-        self.assertIn("pref", form.errors)
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("pref", response.data)
