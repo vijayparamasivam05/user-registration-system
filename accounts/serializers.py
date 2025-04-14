@@ -30,46 +30,52 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate_username(self, value):
         if len(value) < 3:
-            raise serializers.ValidationError("Username must be at least 3 characters.")
+            raise serializers.ValidationError(
+                "ユーザー名は3文字以上で入力してください。"
+            )
         return value
 
     def validate_email(self, value):
         if CustomUser.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Email already exists.")
+            raise serializers.ValidationError(
+                "このメールアドレスはすでに使用されています。"
+            )
         return value
 
     def validate_password(self, value):
         if len(value) < 8:
-            raise serializers.ValidationError("Password must be at least 8 characters.")
+            raise serializers.ValidationError(
+                "パスワードは8文字以上である必要があります。"
+            )
         if not re.search(r"[A-Z]", value):
             raise serializers.ValidationError(
-                "Password must contain at least one uppercase letter."
+                "パスワードには1つ以上の大文字を含めてください。"
             )
         if not re.search(r"[a-z]", value):
             raise serializers.ValidationError(
-                "Password must contain at least one lowercase letter."
+                "パスワードには1つ以上の小文字を含めてください。"
             )
         if not re.search(r"\d", value):
             raise serializers.ValidationError(
-                "Password must contain at least one number."
+                "パスワードには1つ以上の数字を含めてください。"
             )
         return value
 
     def validate_tel(self, value):
         if CustomUser.objects.filter(tel=value).exists():
-            raise serializers.ValidationError("Phone number already exists.")
+            raise serializers.ValidationError("この電話番号はすでに使用されています。")
         if value and not value.isdigit():
-            raise serializers.ValidationError("Phone number must be numeric.")
-        if value and len(value) > 20 or len(value) < 10:
+            raise serializers.ValidationError("電話番号は数字のみで入力してください。")
+        if value and (len(value) < 10 or len(value) > 20):
             raise serializers.ValidationError(
-                "Phone number must be less than 20 characters and more than 10 characters."
+                "電話番号は10文字以上20文字以下である必要があります。"
             )
         return value
 
     def validate(self, data):
         if data["password"] != data["password_confirmation"]:
             raise serializers.ValidationError(
-                {"password_confirmation": "Passwords do not match."}
+                {"password_confirmation": "パスワードが一致しません。"}
             )
         return data
 
