@@ -1,110 +1,207 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { registerUser } from './api';
 import './App.css';
 
-const fields = [
-  { name: 'username', label: 'ユーザー名', type: 'text' },
-  { name: 'email', label: 'メールアドレス', type: 'email' },
-  { name: 'password', label: 'パスワード', type: 'password' },
-  { name: 'tel', label: '電話番号', type: 'text' },
-];
+const App = () => {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [tel, setTel] = useState('');
+  const [pref, setPref] = useState('');
+  const [formErrors, setFormErrors] = useState([]);
+  const [apiErrors, setApiErrors] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [prefList, setPrefList] = useState([]);
 
-const validateForm = (formData) => {
-  const errors = {};
+  useEffect(() => {
+    const fetchPrefectures = async () => {
+      const response = await fetch('http://localhost:8000/accounts/prefs/');
+      const data = await response.json();
+      setPrefList(data);
+    };
+    fetchPrefectures();
+  }, []);
 
-  if (formData.username.length < 3) {
-    errors.username = 'ユーザー名は3文字以上必要です。';
-  }
+  const validateForm = () => {
+    const errors = [];
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(formData.email)) {
-    errors.email = '正しいメールアドレスを入力してください。';
-  }
+    if (!username) {
+      errors.push("ユーザー名は必須です。");
+    } else if (username.length < 3) {
+      errors.push("ユーザー名は3文字以上で入力してください。");
+    }
 
-  const pw = formData.password;
-  if (pw.length < 8 || !/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/\d/.test(pw)) {
-    errors.password = 'パスワードは8文字以上、大文字・小文字・数字を含めてください。';
-  }
+    if (!email) {
+      errors.push("メールアドレスは必須です。");
+    }
 
-  if (formData.tel && !/^\d+$/.test(formData.tel)) {
-    errors.tel = '電話番号は数字のみで入力してください。';
-  }
+    if (!password) {
+      errors.push("パスワードは必須です。");
+    } else {
+      if (password.length < 8) {
+        errors.push("パスワードは8文字以上である必要があります。");
+      }
+      if (!/[A-Z]/.test(password)) {
+        errors.push("パスワードには1つ以上の大文字を含めてください。");
+      }
+      if (!/[a-z]/.test(password)) {
+        errors.push("パスワードには1つ以上の小文字を含めてください。");
+      }
+      if (!/\d/.test(password)) {
+        errors.push("パスワードには1つ以上の数字を含めてください。");
+      }
+    }
 
-  if (!formData.pref) {
-    errors.pref = '都道府県を選択してください。';
-  }
+    if (password !== passwordConfirmation) {
+      errors.push("パスワードが一致しません。");
+    }
 
-  return errors;
-};
+    if (!tel) {
+      errors.push("電話番号は必須です。");
+    } else {
+      if (!/^\d+$/.test(tel)) {
+        errors.push("電話番号は数字のみで入力してください。");
+      }
+      if (tel.length < 10 || tel.length > 20) {
+        errors.push("電話番号は10文字以上20文字以下である必要があります。");
+      }
+    }
 
-function App() {
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    tel: '',
-    pref: '',
-  });
+    if (!pref) {
+      errors.push("都道府県を選択してください。");
+    }
 
-  const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    return errors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationErrors = validateForm(formData);
-    setErrors(validationErrors);
-    setSubmitted(true);
+    setFormErrors([]);
+    setApiErrors([]);
+    setSuccessMessage('');
 
-    if (Object.keys(validationErrors).length === 0) {
-      alert('バリデーション成功！（次はAPI連携）');
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
+
+    const userData = {
+      username,
+      email,
+      password,
+      password_confirmation: passwordConfirmation,
+      tel,
+      pref,
+    };
+
+    try {
+      await registerUser(userData);
+      setSuccessMessage('ユーザーの登録が完了しました！');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setPasswordConfirmation('');
+      setTel('');
+      setPref('');
+    } catch (errorMessages) {
+      setApiErrors(errorMessages);
     }
   };
 
   return (
     <div className="container">
-      <h2>ユーザー登録</h2>
+      <h2>User Registration</h2>
 
-      {submitted && Object.keys(errors).length > 0 && (
+      {successMessage && (
+        <div className="success">{successMessage}</div>
+      )}
+
+      {(formErrors.length > 0 || apiErrors.length > 0) && (
         <div className="error-summary">
           <ul>
-            {Object.values(errors).map((err, index) => (
-              <li key={index}>{err}</li>
+            {formErrors.map((err, idx) => (
+              <li key={`form-${idx}`}>{err}</li>
+            ))}
+            {apiErrors.map((err, idx) => (
+              <li key={`api-${idx}`}>{err}</li>
             ))}
           </ul>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        {fields.map(({ name, label, type }) => (
-          <div className="form-group" key={name}>
-            <label htmlFor={name}>{label}</label>
-            <input
-              type={type}
-              id={name}
-              name={name}
-              value={formData[name]}
-              onChange={handleChange}
-            />
-          </div>
-        ))}
+        <div className="form-group">
+          <label>Username</label>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+          />
+        </div>
 
         <div className="form-group">
-          <label htmlFor="pref">都道府県</label>
-          <select name="pref" value={formData.pref} onChange={handleChange}>
+          <label>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Confirm Password</label>
+          <input
+            type="password"
+            value={passwordConfirmation}
+            onChange={(e) => setPasswordConfirmation(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Phone Number</label>
+          <input
+            type="text"
+            value={tel}
+            onChange={(e) => setTel(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Prefecture</label>
+          <select
+            value={pref}
+            onChange={(e) => setPref(e.target.value)}
+            required
+          >
             <option value="">選択してください</option>
-            <option value="1">東京</option>
-            <option value="2">大阪</option>
+            {prefList.map((prefItem) => (
+              <option key={prefItem.id} value={prefItem.id}>
+                {prefItem.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        <button type="submit">登録</button>
+        <button type="submit">Register</button>
       </form>
     </div>
   );
-}
+};
 
 export default App;
