@@ -1,5 +1,5 @@
 """
-WSGI config for tokyo_gas_vijay project.
+WSGI config for user_registration_system project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tokyo_gas_vijay.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "user_registration_system.settings")
 
 application = get_wsgi_application()

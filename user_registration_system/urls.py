@@ -1,5 +1,5 @@
 """
-URL configuration for tokyo_gas_vijay project.
+URL configuration for user_registration_system project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
